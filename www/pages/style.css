@@ -191,6 +191,20 @@ input.form-control:focus {
     padding-left: 10px;
 }
 
+.settings-status {
+    text-align: left;
+    margin-bottom: 10px;
+}
+
+.settings-users-table {
+    margin-bottom: 0;
+}
+
+.settings-users-table td,
+.settings-users-table th {
+    border-top-color: var(--pwn-lite);
+}
+
 a.help-link {
     color: #507fb1;
     /* text-decoration: dashed; */

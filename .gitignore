@@ -3,3 +3,5 @@ build/pwndrop.exe
 build/data/
 build/
 release/
+.gocache/
+.vscode/

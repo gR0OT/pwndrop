@@ -222,6 +222,12 @@ func AuthSession(r *http.Request) (int, error) {
 		return -1, fmt.Errorf("session token expired")
 	}
 
+	_, err = storage.UserGet(s.Uid)
+	if err != nil {
+		storage.SessionDelete(s.ID)
+		return -1, fmt.Errorf("session token expired")
+	}
+
 	return s.Uid, nil
 }
 

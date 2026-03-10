@@ -1,5 +1,9 @@
 package storage
 
+import (
+	"github.com/asdine/storm"
+)
+
 type DbSession struct {
 	ID         int    `json:"id" storm:"id,increment"`
 	Uid        int    `json:"uid" storm:"index"`
@@ -49,5 +53,24 @@ func SessionDeleteAll() error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func SessionDeleteByUid(uid int) error {
+	var sessions []DbSession
+	err := db.Find("Uid", uid, &sessions)
+	if err != nil {
+		if err == storm.ErrNotFound {
+			return nil
+		}
+		return err
+	}
+
+	for _, session := range sessions {
+		if err = SessionDelete(session.ID); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

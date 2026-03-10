@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "tasks": [
+    {
+      "label": "build pwndrop binary",
+      "type": "shell",
+      "command": "go",
+      "args": [
+        "build",
+        "-mod=vendor",
+        "-o",
+        "${workspaceFolder}/build/pwndrop.exe",
+        "main.go"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "GOCACHE": "${workspaceFolder}/.gocache"
+        }
+      },
+      "group": "build",
+      "problemMatcher": [
+        "$go"
+      ]
+    }
+  ]
+}

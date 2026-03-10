@@ -1,0 +1,16 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "pwndrop (windows)",
+      "type": "go",
+      "request": "launch",
+      "mode": "exec",
+      "program": "${workspaceFolder}/build/pwndrop.exe",
+      "cwd": "${workspaceFolder}/build",
+      "preLaunchTask": "build pwndrop binary",
+      "args": ["-debug", "-no-autocert", "-no-dns", "-config", "${workspaceFolder}/build/pwndrop.ini"],
+      "env": { "GOCACHE": "${workspaceFolder}/.gocache" }
+    }
+  ]
+}

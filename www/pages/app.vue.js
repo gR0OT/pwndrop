@@ -80,6 +80,75 @@ var appHome = Vue.component("app-home", {
                     <div v-show="errors.has('cookie-token')" class="form-error">{{ errors.first('cookie-token') }}</div>
                 </div>
             </div>
+            <hr>
+            <div class="form-group row">
+                <label class="col-sm-3 col-form-label">Manage Users:</label>
+                <div class="col-sm-9">
+                    <div v-if="userStatus.length > 0" class="login-status settings-status">{{ userStatus }}</div>
+                    <div class="form-row">
+                        <div class="col-sm-4 mb-2">
+                            <input
+                                type="text"
+                                class="form-control"
+                                spellcheck="false"
+                                autocomplete="off"
+                                placeholder="Username"
+                                v-model="newUser.username"
+                            >
+                        </div>
+                        <div class="col-sm-3 mb-2">
+                            <input
+                                type="password"
+                                class="form-control"
+                                spellcheck="false"
+                                placeholder="Password"
+                                v-model="newUser.password"
+                            >
+                        </div>
+                        <div class="col-sm-3 mb-2">
+                            <input
+                                type="password"
+                                class="form-control"
+                                spellcheck="false"
+                                placeholder="Retype password"
+                                v-model="newUser.retype_password"
+                            >
+                        </div>
+                        <div class="col-sm-2 mb-2">
+                            <button class="btn btn-secondary w-100" type="button" :disabled="isUsersBusy" @click.prevent="addUser()">
+                                Add
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive mt-2">
+                        <table class="table table-sm table-dark settings-users-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Username</th>
+                                    <th scope="col" class="text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="user in users" :key="user.id">
+                                    <td>{{ user.name }}</td>
+                                    <td class="text-right">
+                                        <button
+                                            class="btn btn-danger btn-sm"
+                                            type="button"
+                                            :disabled="isUsersBusy || users.length <= 1"
+                                            @click.prevent="deleteUser(user)"
+                                        >Delete</button>
+                                    </td>
+                                </tr>
+                                <tr v-if="users.length == 0">
+                                    <td colspan="2" class="text-center text-dim">No users</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </form>
     </b-modal>
 
@@ -115,6 +184,14 @@ var appHome = Vue.component("app-home", {
 				cookie_name: "",
 				cookie_token: ""
             },
+            users: [],
+            newUser: {
+                username: "",
+                password: "",
+                retype_password: ""
+            },
+            userStatus: "",
+            isUsersBusy: false,
             configShow: false,
             version: "-"
 		};
@@ -175,6 +252,7 @@ var appHome = Vue.component("app-home", {
 			}
 		},
 		showConfig() {
+            this.userStatus = "";
 			axios
 				.get(this.url + "/config")
 				.then(response => {
@@ -184,8 +262,11 @@ var appHome = Vue.component("app-home", {
 					this.config.redirect_url = r.redirect_url;
 					this.config.cookie_name = r.cookie_name;
 					this.config.cookie_token = r.cookie_token;
-
-					this.$bvModal.show("config-modal");
+                    return this.loadUsers();
+				})
+				.then(() => {
+                    this.resetNewUser();
+                    this.$bvModal.show("config-modal");
 				})
 				.catch(error => {
 					console.log(error);
@@ -217,6 +298,102 @@ var appHome = Vue.component("app-home", {
 				.catch(error => {
 					console.log(error);
 				});
+        },
+        loadUsers() {
+            return axios
+                .get(this.url + "/users")
+                .then(response => {
+                    console.log(response);
+                    if (response.data.error_code != 0) {
+                        this.userStatus = response.data.message || "Failed to load users";
+                        return;
+                    }
+                    this.users = response.data.data.users || [];
+                })
+                .catch(error => {
+                    console.log(error);
+                    this.userStatus = "Failed to load users";
+                });
+        },
+        resetNewUser() {
+            this.newUser.username = "";
+            this.newUser.password = "";
+            this.newUser.retype_password = "";
+        },
+        addUser() {
+            var username = (this.newUser.username || "").trim();
+            if (username == "" || this.newUser.password == "" || this.newUser.retype_password == "") {
+                this.userStatus = "Fill in all user fields";
+                return;
+            }
+            if (this.newUser.password != this.newUser.retype_password) {
+                this.userStatus = "Passwords do not match";
+                return;
+            }
+
+            this.isUsersBusy = true;
+            this.userStatus = "";
+
+            axios
+                .post(
+                    this.url + "/create_account",
+                    {
+                        username: username,
+                        password: this.newUser.password
+                    },
+                    {
+                        headers: {
+                            "content-type": "application/json"
+                        }
+                    }
+                )
+                .then(response => {
+                    console.log(response);
+                    if (response.data.error_code != 0) {
+                        this.userStatus = response.data.message || "Failed to add user";
+                        return;
+                    }
+                    this.userStatus = "User added";
+                    this.resetNewUser();
+                    return this.loadUsers();
+                })
+                .catch(error => {
+                    console.log(error);
+                    this.userStatus = "Failed to add user";
+                })
+                .then(() => {
+                    this.isUsersBusy = false;
+                });
+        },
+        deleteUser(user) {
+            if (!user || !user.id) {
+                return;
+            }
+            if (!confirm("Delete user '" + user.name + "'?")) {
+                return;
+            }
+
+            this.isUsersBusy = true;
+            this.userStatus = "";
+
+            axios
+                .delete(this.url + "/users/" + user.id)
+                .then(response => {
+                    console.log(response);
+                    if (response.data.error_code != 0) {
+                        this.userStatus = response.data.message || "Failed to delete user";
+                        return;
+                    }
+                    this.userStatus = "User deleted";
+                    return this.loadUsers();
+                })
+                .catch(error => {
+                    console.log(error);
+                    this.userStatus = "Failed to delete user";
+                })
+                .then(() => {
+                    this.isUsersBusy = false;
+                });
         },
         syncVersion() {
             axios
