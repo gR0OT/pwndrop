@@ -31,49 +31,56 @@ func NewHttp(srv *Server) (*Http, error) {
 	return s, nil
 }
 
-func (s *Http) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *Http) ServeHTTP(response http.ResponseWriter, request *http.Request) {
 	data_dir := Cfg.GetDataDir()
 
-	from_ip := r.RemoteAddr
+	from_ip := request.RemoteAddr
 	if strings.Contains(from_ip, ":") {
 		from_ip = strings.Split(from_ip, ":")[0]
 	}
 
-	if r.Method == "GET" {
-		f, status, err := s.srv.GetFile(r.URL.Path)
+	if request.Method == "GET" {
+		// file, status, err := s.srv.GetFileHTTP(request.URL.Path)
+		file, status, err := s.srv.GetFileHTTP(request)
+
 		if err != nil {
-			log.Error("http: get: %s: %s (%s)", r.URL.Path, err, from_ip)
-			err := s.killConnection(w, status)
+			log.Error("http: get: %s: %s (%s)", request.URL.Path, err, from_ip)
+			err := s.killConnection(response, status)
 			if err != nil {
 				log.Error("http: %s (%s)", err, from_ip)
 			}
 			return
 		}
 
-		if f.RedirectPath != "" && f.RedirectPath != r.URL.Path && !f.IsPaused {
-			log.Error("http: get: %s: redirecting to '%s' (%s)", r.URL.Path, f.RedirectPath, from_ip)
-			http.Redirect(w, r, f.RedirectPath, http.StatusFound)
+		if file.RedirectPath != "" && file.RedirectPath != request.URL.Path && !file.IsPaused {
+			log.Error("http: get: %s: redirecting to '%s' (%s)", request.URL.Path, file.RedirectPath, from_ip)
+			http.Redirect(response, request, file.RedirectPath, http.StatusFound)
 		} else {
-			mime_type := f.MimeType
-			if f.IsPaused {
-				mime_type = f.SubMimeType
+			mime_type := file.MimeType
+			if file.IsPaused {
+				mime_type = file.SubMimeType
 			}
-			fpath := filepath.Join(data_dir, "files", f.Filename)
+
+			if file.GetParamEnabled {
+				mime_type = file.MimeType
+			}
+
+			fpath := filepath.Join(data_dir, "files", file.Filename)
 			fo, err := os.Open(fpath)
 			//data, err := ioutil.ReadFile(fpath)
 			if err != nil {
-				log.Error("http: file: %s: %s (%s)", f.Filename, err, from_ip)
+				log.Error("http: file: %s: %s (%s)", file.Filename, err, from_ip)
 				return
 			}
 			defer fo.Close()
 
-			w.Header().Set("Content-Type", mime_type)
-			w.WriteHeader(200)
-			io.Copy(w, fo)
+			response.Header().Set("Content-Type", mime_type)
+			response.WriteHeader(200)
+			io.Copy(response, fo)
 		}
 		return
 	}
-	err := s.killConnection(w, 404)
+	err := s.killConnection(response, 404)
 	if err != nil {
 		log.Error("http: %s (%s)", err, from_ip)
 	}

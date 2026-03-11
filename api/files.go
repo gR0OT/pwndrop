@@ -61,19 +61,22 @@ func FileCreateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	o := &storage.DbFile{
-		Uid:          user_id,
-		Name:         name,
-		Filename:     fname,
-		FileSize:     fi.Size(),
-		UrlPath:      url_path,
-		RedirectPath: "",
-		MimeType:     mime_type,
-		SubMimeType:  mime_type,
-		OrigMimeType: mime_type,
-		CreateTime:   time.Now().Unix(),
-		IsEnabled:    true,
-		IsPaused:     false,
-		RefSubFile:   0,
+		Uid:             user_id,
+		Name:            name,
+		Filename:        fname,
+		FileSize:        fi.Size(),
+		UrlPath:         url_path,
+		RedirectPath:    "",
+		MimeType:        mime_type,
+		SubMimeType:     mime_type,
+		OrigMimeType:    mime_type,
+		CreateTime:      time.Now().Unix(),
+		IsEnabled:       true,
+		IsPaused:        false,
+		RefSubFile:      0,
+		GetParamEnabled: false,
+		GetParamName:    "",
+		GetParamValue:   "",
 	}
 
 	f, err := storage.FileCreate(o)

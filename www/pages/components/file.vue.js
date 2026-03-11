@@ -14,8 +14,13 @@ var appFile = Vue.component("app-file", {
 				</button>
                 </span>
                 <span class="btn-col">
-				<button class="btn btn-sm btn-circle-sm" :class="{'btn-outline-secondary': !file.is_paused, 'btn-gray': file.is_paused}" @click="$emit('pauseFile', file.id)" v-tooltip:top="'Enable the facade and serve the facade file instead of the original one'">
+				<button class="btn btn-sm btn-circle-sm" :class="{'btn-outline-secondary': !file.is_paused, 'btn-gray': file.is_paused}" :disabled="file.sub_file == null || file.get_param_enabled" @click="$emit('pauseFile', file.id)" v-tooltip:top="'Enable the facade and serve the facade file instead of the original one'">
 					<i class="fas fa-mask"></i>
+				</button>
+                </span>
+                <span class="btn-col">
+				<button class="btn btn-sm btn-circle-sm" :class="{'btn-outline-secondary': !file.get_param_enabled, 'btn-warning': file.get_param_enabled}" :disabled="file.sub_file == null" @click="$emit('toggleGetParam', file.id)" v-tooltip:top="'Enable the GET-facade and serve the facade file instead of the original one. Use defined GET parameter to serve the original file'">
+					<i class="fa-solid fa-person-military-to-person"></i>
 				</button>
                 </span>
 			</div>

@@ -81,6 +81,9 @@ func SubFileCreateHandler(w http.ResponseWriter, r *http.Request) {
 
 	parent_file.SubName = f.Name
 	parent_file.RefSubFile = f.ID
+	parent_file.GetParamEnabled = false
+	parent_file.GetParamName = utils.GenRandomString(6)
+	parent_file.GetParamValue = utils.GenRandomString(14)
 	log.Debug("ref_sub_file: %d", parent_file.RefSubFile)
 	_, err = storage.FileUpdate(fid, parent_file)
 	if err != nil {

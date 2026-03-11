@@ -295,7 +295,7 @@ a:hover {
 
 .upload-item .upload-desc {
 	padding-right: 48px;
-	padding-left: 114px;
+	padding-left: 160px;
 	line-height: 32px;
 }
 
@@ -365,6 +365,10 @@ a:hover {
 	text-align: center;
 	font-size: 12px;
 	line-height: 1;
+}
+
+.btn-circle-sm .fa-person-military-to-person:before {
+    filter: brightness(1.35) saturate(1.05);
 }
 
 .btn-gray {

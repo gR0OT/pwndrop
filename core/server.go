@@ -260,11 +260,11 @@ func (s *Server) setupRouter() {
 	s.r.PathPrefix(fmt.Sprintf("%s", admin_path)).Handler(http.StripPrefix(fmt.Sprintf("%s", admin_path), http.FileServer(http.Dir(Cfg.GetAdminDir()))))
 }
 
-func (s *Server) handleNotFound(w http.ResponseWriter, r *http.Request) {
-	log.Debug("%s %s", r.Method, r.URL.Path)
+func (s *Server) handleNotFound(response http.ResponseWriter, request *http.Request) {
+	log.Debug("%s %s", request.Method, request.URL.Path)
 }
 
-func (s *Server) GetFile(url string) (*storage.DbFile, int, error) {
+func (s *Server) GetFileWebdav(url string) (*storage.DbFile, int, error) {
 	is_redirect := false
 	f, err := storage.FileGetByUrl(url)
 	if err != nil {
@@ -277,6 +277,52 @@ func (s *Server) GetFile(url string) (*storage.DbFile, int, error) {
 	if !f.IsEnabled {
 		return nil, 404, fmt.Errorf("file is disabled")
 	}
+
+	if f.IsPaused {
+		if f.RedirectPath != "" && is_redirect {
+			return nil, 404, fmt.Errorf("can't access facade via redirect while paused")
+		} else if f.RefSubFile > 0 {
+			sf, err := storage.SubFileGet(f.RefSubFile)
+			if err != nil {
+				return nil, 404, fmt.Errorf("facade file not found")
+			}
+			f.Filename = sf.Filename
+			f.FileSize = sf.FileSize
+		} else {
+			return nil, 404, fmt.Errorf("facade file not set")
+		}
+	}
+	return f, 200, nil
+}
+
+func (s *Server) GetFileHTTP(request *http.Request) (*storage.DbFile, int, error) {
+	url := request.URL.Path
+	is_redirect := false
+	f, err := storage.FileGetByUrl(url)
+	if err != nil {
+		f, err = storage.FileGetByRedirectUrl(url)
+		if err != nil {
+			return nil, 404, err
+		}
+		is_redirect = true
+	}
+	if !f.IsEnabled {
+		return nil, 404, fmt.Errorf("file is disabled")
+	}
+
+	if f.GetParamEnabled {
+		url_param_value := request.URL.Query().Get(f.GetParamName)
+		if url_param_value != f.GetParamValue {
+			sf, err := storage.SubFileGet(f.RefSubFile)
+			if err != nil {
+				return nil, 404, fmt.Errorf("facade file not found")
+			}
+			f.Filename = sf.Filename
+			f.FileSize = sf.FileSize
+		}
+		return f, 200, nil
+	}
+
 	if f.IsPaused {
 		if f.RedirectPath != "" && is_redirect {
 			return nil, 404, fmt.Errorf("can't access facade via redirect while paused")

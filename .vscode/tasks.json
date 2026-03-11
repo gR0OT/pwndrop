@@ -3,8 +3,18 @@
   "tasks": [
     {
       "label": "build pwndrop binary",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "go build pwndrop binary",
+        "sync admin assets"
+      ],
+      "group": "build"
+    },
+    {
+      "label": "go build pwndrop binary",
       "type": "shell",
       "command": "go",
+      "group": "build",
       "args": [
         "build",
         "-mod=vendor",
@@ -18,10 +28,22 @@
           "GOCACHE": "${workspaceFolder}/.gocache"
         }
       },
-      "group": "build",
       "problemMatcher": [
         "$go"
       ]
+    },
+    {
+      "label": "sync admin assets",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "New-Item -ItemType Directory -Force -Path '${workspaceFolder}/build/admin' | Out-Null; Copy-Item -Path '${workspaceFolder}/www/*' -Destination '${workspaceFolder}/build/admin' -Recurse -Force"
+      ],
+      "problemMatcher": []
     }
   ]
 }

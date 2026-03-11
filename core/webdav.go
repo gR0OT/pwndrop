@@ -65,7 +65,7 @@ func (fs *WebDavFS) OpenFile(ctx context.Context, name string, flag int, perm os
 	is_dir := storage.FileDirExists(name)
 
 	var fsize int64 = 0
-	f, _, err := fs.srv.GetFile(name)
+	f, _, err := fs.srv.GetFileWebdav(name)
 	if err != nil {
 		if !is_dir {
 			log.Error("webdav: %s", err)
@@ -125,7 +125,7 @@ func (fs *WebDavFS) Stat(ctx context.Context, name string) (os.FileInfo, error) 
 	is_dir = storage.FileDirExists(name)
 
 	if !is_dir {
-		f, _, err := fs.srv.GetFile(name)
+		f, _, err := fs.srv.GetFileWebdav(name)
 		if err != nil {
 			log.Error("webdav: %s", err)
 			return nil, err

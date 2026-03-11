@@ -26,7 +26,7 @@ var appFileView = Vue.component("app-file-view", {
                             v-validate="'required'"
                             v-bind:class="{'form-control': true, 'error': errors.has('display-name') }"
                         >
-                        <div v-show="errors.has('display-name')" class="form-error"">{{ errors.first('display-name') }}</div>
+                        <div v-show="errors.has('display-name')" class="form-error">{{ errors.first('display-name') }}</div>
 					</div>
 				</div>
 				<div class="form-group row">
@@ -199,6 +199,46 @@ var appFileView = Vue.component("app-file-view", {
                                 <div v-show="errors.has('sub-mime-type')" class="form-error">{{ errors.first('sub-mime-type') }}</div>
                             </div>
                         </div>
+                        <hr>
+                        <div class="form-group row desc">
+                            <label class="col-sm-3 col-form-label label-help">
+                                Param Serving:
+                                <i class="fas fa-question-circle label-qmark" v-tooltip:bottom="'When enabled, requests without the configured GET parameter serve the facade; requests with correct parameter serve the original file'"></i>
+                            </label>
+                            <div class="col-sm-9">
+                                <small>Use the file button <i class="fa-solid fa-person-military-to-person"></i> to toggle this mode.</small>
+                            </div>
+                        </div>
+                        <div class="form-group row desc">
+                            <label for="edit-get-param-name" class="col-sm-3 col-form-label label-help">
+                                GET Param Name:
+                            </label>
+                            <div class="col-sm-9">
+                                <input
+                                    type="text"
+                                    class="form-control"
+                                    id="edit-get-param-name"
+                                    spellcheck="false"
+                                    v-model="file_edit.get_param_name"
+                                    name="get-param-name"
+                                >
+                            </div>
+                        </div>
+                        <div class="form-group row desc">
+                            <label for="edit-get-param-value" class="col-sm-3 col-form-label label-help">
+                                GET Param Value:
+                            </label>
+                            <div class="col-sm-9">
+                                <input
+                                    type="text"
+                                    class="form-control"
+                                    id="edit-get-param-value"
+                                    spellcheck="false"
+                                    v-model="file_edit.get_param_value"
+                                    name="get-param-value"
+                                >
+                            </div>
+                        </div>
 					</div>
 				</transition>
 			</form>
@@ -236,6 +276,7 @@ var appFileView = Vue.component("app-file-view", {
 					@deleteFile="deleteFile"
 					@enableFile="enableFile"
 					@pauseFile="pauseFile"
+                    @toggleGetParam="toggleGetParam"
 				></app-file>
 			</div>
 		</transition-group>
@@ -267,6 +308,9 @@ var appFileView = Vue.component("app-file-view", {
 				sub_size: 0,
                 url_path: "",
                 redirect_path: "",
+                get_param_enabled: false,
+                get_param_name: "",
+                get_param_value: "",
 				wdav_path: ""
             },
             server_info: {
@@ -277,7 +321,16 @@ var appFileView = Vue.component("app-file-view", {
     },
     computed: {
         isComplete () {
-            return this.file_edit.name && this.file_edit.mime_type && this.file_edit.url_path && (this.file_edit.ref_sub_file == 0 || (this.file_edit.sub_name && this.file_edit.sub_mime_type));
+            if (!(this.file_edit.name && this.file_edit.mime_type && this.file_edit.url_path)) {
+                return false;
+            }
+            if (this.file_edit.ref_sub_file > 0 && !(this.file_edit.sub_name && this.file_edit.sub_mime_type)) {
+                return false;
+            }
+            if (this.file_edit.ref_sub_file > 0 && this.file_edit.get_param_enabled && !(this.file_edit.get_param_name && this.file_edit.get_param_value)) {
+                return false;
+            }
+            return true;
         }
     },
 	methods: {
@@ -329,6 +382,9 @@ var appFileView = Vue.component("app-file-view", {
 					orig_mime_type: file.type,
                     url_path: "",
                     redirect_path: "",
+                    get_param_enabled: false,
+                    get_param_name: "",
+                    get_param_value: "",
 					wdav_path: "",
 					progress: 0,
 					key: this.next_key,
@@ -375,6 +431,9 @@ var appFileView = Vue.component("app-file-view", {
                             ut.mime_type = it.mime_type;
                             ut.sub_mime_type = it.sub_mime_type;
                             ut.orig_mime_type = it.orig_mime_type;
+                            ut.get_param_enabled = it.get_param_enabled;
+                            ut.get_param_name = it.get_param_name;
+                            ut.get_param_value = it.get_param_value;
 							ut.progress = 100;
 
 							//it.progress = 100;
@@ -466,11 +525,17 @@ var appFileView = Vue.component("app-file-view", {
 						vm.file_edit.sub_name = it.name;
 						vm.file_edit.sub_size = it.fsize;
 						vm.file_edit.sub_ctime = it.create_time;
+                        vm.file_edit.get_param_enabled = false;
+                        vm.file_edit.get_param_name = vm.randomString(6);
+                        vm.file_edit.get_param_value = vm.randomString(14);
 
 						var i = this.findFileIndexById(parent_id);
 						if (i != -1) {
 							var f = this.uploads[i];
 							f.ref_sub_file = it.id;
+                            f.get_param_enabled = vm.file_edit.get_param_enabled;
+                            f.get_param_name = vm.file_edit.get_param_name;
+                            f.get_param_value = vm.file_edit.get_param_value;
 							f.sub_file = {
 								create_time: it.create_time,
 								fid: parent_id,
@@ -502,6 +567,9 @@ var appFileView = Vue.component("app-file-view", {
 			this.file_edit.orig_mime_type = this.uploads[i].orig_mime_type;
 			this.file_edit.url_path = this.uploads[i].url_path;
 			this.file_edit.redirect_path = this.uploads[i].redirect_path;
+			this.file_edit.get_param_enabled = this.uploads[i].get_param_enabled;
+			this.file_edit.get_param_name = this.uploads[i].get_param_name;
+			this.file_edit.get_param_value = this.uploads[i].get_param_value;
 			this.file_edit.wdav_path = this.uploads[i].wdav_path;
 			this.file_edit.ref_sub_file = this.uploads[i].ref_sub_file;
 			this.file_edit.sub_name = "<unknown>";
@@ -514,31 +582,48 @@ var appFileView = Vue.component("app-file-view", {
 				this.file_edit.sub_ctime = this.uploads[i].sub_file.create_time;
 			} else {
 				this.file_edit.ref_sub_file = 0;
+                this.file_edit.get_param_enabled = false;
+                this.file_edit.get_param_name = "";
+                this.file_edit.get_param_value = "";
 			}
 			//this.$refs.editModal.modal("show");
 			//this.edit_show = true;
 			this.$bvModal.show("edit-modal");
 		},
-		updateFile() {
+		updateFile(file_data, options) {
             var vm = this;
-			if (!this.file_edit) {
+            options = options || {};
+            var src = file_data || this.file_edit;
+
+			if (!src) {
 				return;
             }
-            if (!this.isComplete) {
+            if (!file_data && !this.isComplete) {
                 return;
             }
-			var id = this.file_edit.id;
+
+			var id = src.id;
+            if (!id) {
+                return;
+            }
+
+            var payload = {
+                name: src.name,
+                url_path: src.url_path,
+                redirect_path: src.redirect_path,
+                mime_type: src.mime_type,
+                sub_mime_type: src.sub_mime_type,
+                sub_name: src.sub_name,
+                ref_sub_file: src.ref_sub_file || 0,
+                get_param_enabled: src.ref_sub_file > 0 ? !!src.get_param_enabled : false,
+                get_param_name: src.ref_sub_file > 0 ? src.get_param_name : "",
+                get_param_value: src.ref_sub_file > 0 ? src.get_param_value : ""
+            };
+
 			axios
 				.put(
 					this.url + "/files/" + id,
-					{
-						name: this.file_edit.name,
-						url_path: this.file_edit.url_path,
-						redirect_path: this.file_edit.redirect_path,
-                        mime_type: this.file_edit.mime_type,
-                        sub_mime_type: this.file_edit.sub_mime_type,
-						sub_name: this.file_edit.sub_name
-					},
+					payload,
 					{
 						headers: {
 							"content-type": "application/json"
@@ -547,23 +632,104 @@ var appFileView = Vue.component("app-file-view", {
 				)
 				.then(response => {
 					console.log(response);
-					vm.$bvModal.hide("edit-modal");
+                    if (!options.keepModalOpen) {
+                        vm.$bvModal.hide("edit-modal");
+                    }
 
 					var i = this.findFileIndexById(id);
 					if (i != -1) {
 						var f = response.data.data;
-						vm.uploads[i].name = f.name;
+                        vm.uploads[i].name = f.name;
 						vm.uploads[i].sub_name = f.sub_name;
 						vm.uploads[i].url_path = f.url_path;
 						vm.uploads[i].redirect_path = f.redirect_path;
                         vm.uploads[i].mime_type = f.mime_type;
-                        vm.uploads[i].sub_mime_type = f.sub_mime_type;                       
+                        vm.uploads[i].sub_mime_type = f.sub_mime_type;
+                        vm.uploads[i].ref_sub_file = f.ref_sub_file;
+                        vm.uploads[i].get_param_enabled = f.get_param_enabled;
+                        vm.uploads[i].get_param_name = f.get_param_name;
+                        vm.uploads[i].get_param_value = f.get_param_value;
 					}
+
+                    var chain = Promise.resolve();
+                    var pauseState = options.pauseState;
+                    if (typeof pauseState === "undefined" && options.autoPause) {
+                        pauseState = true;
+                    }
+                    if (typeof pauseState === "boolean") {
+                        var pauseApi = pauseState ? "/pause" : "/unpause";
+                        chain = chain.then(() => {
+                            return axios.get(this.url + "/files/" + id + pauseApi)
+                                .then(response => {
+                                    var i = this.findFileIndexById(id);
+                                    if (i != -1) {
+                                        var f = response.data.data;
+                                        this.uploads[i].is_enabled = f.is_enabled;
+                                        this.uploads[i].is_paused = f.is_paused;
+                                    }
+                                });
+                        });
+                    }
+                    if (options.autoEnable) {
+                        chain = chain.then(() => {
+                            var i = this.findFileIndexById(id);
+                            if (i == -1 || this.uploads[i].is_enabled) {
+                                return;
+                            }
+                            return axios.get(this.url + "/files/" + id + "/enable")
+                                .then(response => {
+                                    var i = this.findFileIndexById(id);
+                                    if (i != -1) {
+                                        var f = response.data.data;
+                                        this.uploads[i].is_enabled = f.is_enabled;
+                                        this.uploads[i].is_paused = f.is_paused;
+                                    }
+                                });
+                        });
+                    }
+                    return chain;
 				})
 				.catch(error => {
 					console.log(error);
 				});
 		},
+        toggleGetParam(id) {
+            var i = this.findFileIndexById(id);
+            if (i == -1) {
+                return;
+            }
+            if (this.uploads[i].sub_file == null) {
+                return;
+            }
+
+            var f = this.uploads[i];
+            var req = {
+                id: f.id,
+                name: f.name,
+                url_path: f.url_path,
+                redirect_path: f.redirect_path,
+                mime_type: f.mime_type,
+                sub_mime_type: f.sub_mime_type,
+                sub_name: f.sub_name,
+                ref_sub_file: f.ref_sub_file,
+                get_param_enabled: !Boolean(f.get_param_enabled),
+                get_param_name: f.get_param_name,
+                get_param_value: f.get_param_value
+            };
+            if (!req.get_param_name) {
+                req.get_param_name = this.randomString(6);
+            }
+            if (!req.get_param_value) {
+                req.get_param_value = this.randomString(14);
+            }
+
+            var enableGetParam = !f.get_param_enabled;
+            this.updateFile(req, {
+                keepModalOpen: true,
+                pauseState: enableGetParam,
+                autoEnable: true
+            });
+        },
 		deleteFile(id) {
 			axios
 				.delete(this.url + "/files/" + id)
@@ -609,6 +775,9 @@ var appFileView = Vue.component("app-file-view", {
 			if (i == -1) {
 				return;
 			}
+			if (this.uploads[i].get_param_enabled) {
+				return;
+			}
 			if (this.uploads[i].sub_file == null) {
 				this.uploads[i].is_paused = false;
 				return;
@@ -641,10 +810,16 @@ var appFileView = Vue.component("app-file-view", {
 					console.log(response);
 
 					this.file_edit.ref_sub_file = 0;
+                    this.file_edit.get_param_enabled = false;
+                    this.file_edit.get_param_name = "";
+                    this.file_edit.get_param_value = "";
 					var i = this.findFileIndexById(parent_id);
 					if (i != -1) {
 						this.uploads[i].ref_sub_file = 0;
 						this.uploads[i].sub_name = "";
+                        this.uploads[i].get_param_enabled = false;
+                        this.uploads[i].get_param_name = "";
+                        this.uploads[i].get_param_value = "";
 						this.uploads[i].sub_file = null;
 						this.uploads[i].is_paused = false;
                     }
@@ -663,6 +838,14 @@ var appFileView = Vue.component("app-file-view", {
 			});
 			return ret;
 		},
+        randomString(length) {
+            var chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            var out = "";
+            for (var i = 0; i < length; i++) {
+                out += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return out;
+        },
 		refresh() {
 			var t = this;
 			axios

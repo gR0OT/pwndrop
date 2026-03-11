@@ -5,21 +5,24 @@ import (
 )
 
 type DbFile struct {
-	ID           int    `json:"id" storm:"id,increment"`
-	Uid          int    `json:"uid" storm:"index"`
-	Name         string `json:"name"`
-	Filename     string `json:"fname"`
-	FileSize     int64  `json:"fsize"`
-	UrlPath      string `json:"url_path" storm:"unique"`
-	MimeType     string `json:"mime_type"`
-	OrigMimeType string `json:"orig_mime_type"`
-	CreateTime   int64  `json:"create_time" storm:"index"`
-	IsEnabled    bool   `json:"is_enabled"`
-	IsPaused     bool   `json:"is_paused"`
-	RedirectPath string `json:"redirect_path" storm:"unique"`
-	SubName      string `json:"sub_name"`
-	SubMimeType  string `json:"sub_mime_type"`
-	RefSubFile   int    `json:"ref_sub_file"`
+	ID              int    `json:"id" storm:"id,increment"`
+	Uid             int    `json:"uid" storm:"index"`
+	Name            string `json:"name"`
+	Filename        string `json:"fname"`
+	FileSize        int64  `json:"fsize"`
+	UrlPath         string `json:"url_path" storm:"unique"`
+	MimeType        string `json:"mime_type"`
+	OrigMimeType    string `json:"orig_mime_type"`
+	CreateTime      int64  `json:"create_time" storm:"index"`
+	IsEnabled       bool   `json:"is_enabled"`
+	IsPaused        bool   `json:"is_paused"`
+	RedirectPath    string `json:"redirect_path" storm:"unique"`
+	SubName         string `json:"sub_name"`
+	SubMimeType     string `json:"sub_mime_type"`
+	RefSubFile      int    `json:"ref_sub_file"`
+	GetParamEnabled bool   `json:"get_param_enabled"`
+	GetParamName    string `json:"get_param_name"`
+	GetParamValue   string `json:"get_param_value"`
 }
 
 func FileCreate(o *DbFile) (*DbFile, error) {
@@ -106,17 +109,37 @@ func FileDelete(id int) error {
 }
 
 func FileUpdate(id int, o *DbFile) (*DbFile, error) {
-	if err := db.Update(&DbFile{ID: id, Name: o.Name, UrlPath: o.UrlPath, MimeType: o.MimeType, RefSubFile: o.RefSubFile, SubName: o.SubName, RedirectPath: o.RedirectPath, SubMimeType: o.SubMimeType}); err != nil {
+	cur, err := FileGet(id)
+	if err != nil {
 		return nil, err
 	}
-	if err := db.UpdateField(&DbFile{ID: id}, "RedirectPath", o.RedirectPath); err != nil {
+
+	cur.Name = o.Name
+	cur.UrlPath = o.UrlPath
+	cur.MimeType = o.MimeType
+	cur.RefSubFile = o.RefSubFile
+	cur.SubName = o.SubName
+	cur.RedirectPath = o.RedirectPath
+	cur.SubMimeType = o.SubMimeType
+	cur.GetParamEnabled = o.GetParamEnabled
+	cur.GetParamName = o.GetParamName
+	cur.GetParamValue = o.GetParamValue
+
+	// Keep GET param mode consistent with facade state.
+	if cur.RefSubFile <= 0 {
+		cur.GetParamEnabled = false
+		cur.GetParamName = ""
+		cur.GetParamValue = ""
+	}
+
+	if err := db.Save(cur); err != nil {
 		return nil, err
 	}
-	return o, nil
+	return cur, nil
 }
 
 func FileResetSubFile(id int) (*DbFile, error) {
-	if err := db.UpdateField(&DbFile{ID: id}, "RefSubFile", 0); err != nil {
+	if err := db.Update(&DbFile{ID: id, RefSubFile: 0, GetParamEnabled: false, GetParamName: "", GetParamValue: ""}); err != nil {
 		return nil, err
 	}
 	o, err := FileGet(id)
